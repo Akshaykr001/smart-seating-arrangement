@@ -31,6 +31,10 @@ def validate_seating_arrangement(seat_assignments, G_seats, original_students):
     
     for seat_id, student in seat_assignments.items():
         s_id = student["id"]
+        # Clear any intermediate flags to ensure truth is derived purely from final graph
+        student["has_class_conflict"] = False
+        student["has_subject_relaxation"] = False
+        
         if s_id in seen_student_ids:
             double_booked_seats.append({
                 "student_id": s_id,
@@ -52,6 +56,8 @@ def validate_seating_arrangement(seat_assignments, G_seats, original_students):
             
             # 1. Hard constraint phi_1: class(u) != class(v)
             if u_student.get("class") == v_student.get("class"):
+                u_student["has_class_conflict"] = True
+                v_student["has_class_conflict"] = True
                 class_violations.append({
                     "seat_u": u,
                     "seat_v": v,
@@ -64,6 +70,8 @@ def validate_seating_arrangement(seat_assignments, G_seats, original_students):
                 
             # 2. Soft constraint phi_2: subject(u) != subject(v)
             if u_student.get("subject") == v_student.get("subject"):
+                u_student["has_subject_relaxation"] = True
+                v_student["has_subject_relaxation"] = True
                 subject_relaxations.append({
                     "seat_u": u,
                     "seat_v": v,

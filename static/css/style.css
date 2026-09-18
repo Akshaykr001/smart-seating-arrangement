@@ -521,6 +521,12 @@ body {
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
+.seat.has-class-conflict {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: var(--accent-rose) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
 .seat-top {
   display: flex;
   justify-content: space-between;

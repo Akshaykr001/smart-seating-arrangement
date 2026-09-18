@@ -65,10 +65,29 @@
         </div>
     </div>
 
+    {% if feasibility_report.hard_violation_guaranteed %}
+    <div class="card no-print" style="border-color: var(--accent-rose); background: rgba(225, 29, 72, 0.1); margin-bottom: 2rem;">
+        <div class="card-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+            <div class="card-title" style="color: var(--accent-rose);">
+                &excl; Infeasible Configuration Detected
+            </div>
+        </div>
+        <div style="padding: 0.5rem 1.25rem 1.25rem 1.25rem; color: var(--text-primary);">
+            <p style="margin-bottom: 0.75rem; font-weight: bold;">The requested seating arrangement is mathematically infeasible for hard constraints.</p>
+            <ul style="margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+            {% for diag in feasibility_report.diagnostics %}
+                <li style="margin-bottom: 0.25rem;">{{ diag.message }}</li>
+            {% endfor %}
+            </ul>
+            <p style="font-size: 0.9rem; color: var(--text-muted);">Showing best-effort placement below with unavoidable conflicts flagged.</p>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- SECTION 1: Visual Seat Maps per Room -->
     {% for room_id, room in room_allocations.items() %}
     <div class="room-container">
-        <div class="room-header">
+        <div class="room-header" style="margin-bottom: 0.75rem;">
             <div>
                 <h2 class="room-title">Room {{ room_id }} Seating Blueprint</h2>
                 <div style="font-size: 0.82rem; color: var(--text-muted); font-family: var(--font-mono);">
@@ -88,6 +107,23 @@
                 {% endfor %}
             </div>
         </div>
+        
+        <div class="room-summary-banner" style="margin-bottom: 1.5rem; padding: 0.75rem; background-color: rgba(0,0,0,0.25); border-radius: 6px; font-size: 0.85rem; border-left: 4px solid {{ 'var(--accent-rose)' if room.class_violations > 0 else 'var(--accent-emerald)' }};">
+            <div style="margin-bottom: 0.25rem;">
+            {% if room.class_violations > 0 %}
+                <span style="color: var(--accent-rose); font-weight: bold;">&#9888; {{ room.class_violations }} hard-constraint (class) violation(s) could not be avoided — see flagged seats.</span>
+            {% else %}
+                <span style="color: var(--accent-emerald); font-weight: bold;">&check; 0 hard-constraint (class) violations.</span>
+            {% endif %}
+            </div>
+            <div>
+            {% if room.subject_violations > 0 %}
+                <span style="color: var(--accent-amber); font-weight: bold;">&#9888; {{ room.subject_violations }} soft-constraint (subject) relaxation(s) applied.</span>
+            {% else %}
+                <span style="color: var(--accent-emerald); font-weight: bold;">&check; 0 soft-constraint (subject) relaxations.</span>
+            {% endif %}
+            </div>
+        </div>
 
         <div class="chalkboard">
             &boxh;&boxh;&boxh; FRONT OF ROOM {{ room_id }} / CHALKBOARD &amp; PROCTOR PODIUM &boxh;&boxh;&boxh;
@@ -102,8 +138,8 @@
                     <div class="bench" data-bench="{{ bench.bench_num }}">
                         {% for s in bench.seats %}
                             {% set stu = s.student %}
-                            <div class="seat {{ 'occupied' if stu else 'empty' }} {{ 'accessible-seat' if s.accessible else '' }} {{ 'has-relaxed-conflict' if stu and stu.has_subject_relaxation else '' }}"
-                                 title="{{ s.label }}{% if stu %} | ID: {{ stu.id }} | Class: {{ stu.class }} | Subj: {{ stu.subject }}{% if stu.has_subject_relaxation %} (Relaxed Subject Collision){% endif %}{% endif %}">
+                            <div class="seat {{ 'occupied' if stu else 'empty' }} {{ 'accessible-seat' if s.accessible else '' }} {{ 'has-class-conflict' if stu and stu.has_class_conflict else ('has-relaxed-conflict' if stu and stu.has_subject_relaxation else '') }}"
+                                 title="{{ s.label }}{% if stu %} | ID: {{ stu.id }} | Class: {{ stu.class }} | Subj: {{ stu.subject }}{% if stu.has_class_conflict %} (Class Collision){% elif stu.has_subject_relaxation %} (Relaxed Subject Collision){% endif %}{% endif %}">
                                 
                                 <div class="seat-top">
                                     <span class="seat-num">S{{ s.seat_num }}</span>
@@ -126,7 +162,11 @@
 
                                     <div class="student-subject" title="{{ stu.subject }}">{{ stu.subject }}</div>
                                     
-                                    {% if stu.has_subject_relaxation %}
+                                    {% if stu.has_class_conflict %}
+                                        <div style="font-size: 0.6rem; color: var(--accent-rose); font-weight: 700; margin-top: 2px;">
+                                            &excl; Class Conflict
+                                        </div>
+                                    {% elif stu.has_subject_relaxation %}
                                         <div style="font-size: 0.6rem; color: var(--accent-amber); font-weight: 700; margin-top: 2px;">
                                             &excl; Relaxed Subj
                                         </div>
@@ -188,7 +228,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if row.relaxed == 'Yes (Subject)' %}
+                            {% if row.relaxed == 'Yes (Class)' %}
+                                <span class="math-badge badge-danger">&excl; Class Conflict</span>
+                            {% elif row.relaxed == 'Yes (Subject)' %}
                                 <span class="math-badge badge-warning">&excl; Relaxed Subject</span>
                             {% else %}
                                 <span class="math-badge badge-success">&check; Optimal</span>

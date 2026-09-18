@@ -119,23 +119,19 @@ def sample_csv():
         data = [
             ["ID", "Class", "Subject", "Special_Needs"],
             ["STU001", "CSE AIML", "Maths", "Y"],
-            ["STU002", "CSE AIML", "Maths", "N"],
-            ["STU003", "CSE AIML", "Maths", "N"],
-            ["STU004", "CSE AIML", "Maths", "N"],
+            ["STU002", "CSE CSBS", "Physics", "N"],
+            ["STU003", "CSE Gen", "Chemistry", "N"],
+            ["STU004", "CSE IBM", "Biology", "N"],
             ["STU005", "CSE AIML", "Maths", "N"],
-            ["STU006", "CSE AIML", "Maths", "N"],
-            ["STU007", "CSE AIML", "Maths", "N"],
-            ["STU008", "CSE AIML", "Maths", "N"],
+            ["STU006", "CSE CSBS", "Physics", "N"],
+            ["STU007", "CSE Gen", "Chemistry", "N"],
+            ["STU008", "CSE IBM", "Biology", "N"],
             ["STU009", "CSE AIML", "Maths", "N"],
-            ["STU010", "CSE AIML", "Maths", "N"],
-            ["STU011", "CSE AIML", "Maths", "N"],
-            ["STU012", "CSE AIML", "Maths", "N"],
-            ["STU013", "CSE AIML", "Maths", "N"],
-            ["STU014", "CSE AIML", "Maths", "N"],
-            ["STU015", "CSE CSBS", "Physics", "Y"],
-            ["STU016", "CSE CSBS", "Physics", "N"],
-            ["STU017", "CSE CSBS", "Physics", "N"],
-            ["STU018", "CSE CSBS", "Physics", "N"],
+            ["STU010", "CSE CSBS", "Physics", "N"],
+            ["STU011", "CSE Gen", "Chemistry", "N"],
+            ["STU012", "CSE IBM", "Biology", "N"],
+            ["STU013", "CSE AIML", "Maths", "Y"],
+            ["STU014", "CSE CSBS", "Physics", "N"],
         ]
         filename = "pigeonhole_stress_test.csv"
     elif preset == "multiroom":
@@ -295,6 +291,20 @@ def assign():
         # --- Step 5: Explicit Propositional Logic Validation ---
         validation_certificate = validate_seating_arrangement(seat_assignments, G_seats, students)
         
+        # Extract relaxed_constraints from validation_certificate for the UI
+        # Map them to the format expected by results.html
+        relaxed_constraints = []
+        for v in validation_certificate["propositions"][1]["violations"]:
+            relaxed_constraints.append({
+                "seat_a": v["seat_u"],
+                "seat_b": v["seat_v"],
+                "seat_a_label": v["seat_u_label"],
+                "seat_b_label": v["seat_v_label"],
+                "student_a": v["student_u"],
+                "student_b": v["student_v"],
+                "subject": v["subject"]
+            })
+        
         # --- Step 6: Combinatorial Counting (Product Rule & PIE) ---
         counting_report = compute_combinatorial_counts(students, G_seats)
         
@@ -311,7 +321,9 @@ def assign():
                 "student_count": 0,
                 "special_needs_count": 0,
                 "invigilators_needed": 0,
-                "invigilators_list": []
+                "invigilators_list": [],
+                "class_violations": 0,
+                "subject_violations": 0
             }
             
             # Construct visual grid structure for Jinja template
@@ -350,9 +362,28 @@ def assign():
                 for i in range(1, needed + 1)
             ]
             
+        # Tally up violations per room based on validation_certificate edges
+        # We count the number of edge pairs (divided by 2 since undirected edges are stored, 
+        # wait, validator iterates over G_seats.edges() which are undirected, so each edge is counted once)
+        for v in validation_certificate["propositions"][0]["violations"]:
+            room_id = G_seats.nodes[v["seat_u"]].get("room_id", 1)
+            if room_id in room_allocations:
+                room_allocations[room_id]["class_violations"] += 1
+                
+        for v in validation_certificate["propositions"][1]["violations"]:
+            room_id = G_seats.nodes[v["seat_u"]].get("room_id", 1)
+            if room_id in room_allocations:
+                room_allocations[room_id]["subject_violations"] += 1
+            
         # Format printable flat allocation list
         flat_allocation_table = []
         for seat_id, stu in seat_assignments.items():
+            relaxed_str = "No"
+            if stu.get("has_class_conflict"):
+                relaxed_str = "Yes (Class)"
+            elif stu.get("has_subject_relaxation"):
+                relaxed_str = "Yes (Subject)"
+                
             flat_allocation_table.append({
                 "room_id": stu.get("room_id", 1),
                 "seat_id": seat_id,
@@ -361,7 +392,7 @@ def assign():
                 "class": stu.get("class", ""),
                 "subject": stu.get("subject", ""),
                 "special_needs": "Yes" if stu.get("special_needs") else "No",
-                "relaxed": "Yes (Subject)" if stu.get("has_subject_relaxation") else "No"
+                "relaxed": relaxed_str
             })
             
         flat_allocation_table.sort(key=lambda x: (x["room_id"], x["seat_id"]))

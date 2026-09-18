@@ -144,31 +144,8 @@ def map_students_to_seats(
             student_copy["assigned_seat"] = best_seat
             student_copy["seat_label"] = G_seats.nodes[best_seat].get("seat_label", best_seat)
             student_copy["room_id"] = G_seats.nodes[best_seat].get("room_id", 1)
-            student_copy["has_subject_relaxation"] = False
-            
-            # Check if this placement triggered soft subject relaxations
-            for neighbor_id in G_seats.neighbors(best_seat):
-                if neighbor_id in seat_assignments:
-                    neighbor_student = seat_assignments[neighbor_id]
-                    if neighbor_student.get("subject") == s_subject:
-                        student_copy["has_subject_relaxation"] = True
-                        neighbor_student["has_subject_relaxation"] = True
-                        relaxed_info = {
-                            "seat_a": best_seat,
-                            "seat_b": neighbor_id,
-                            "seat_a_label": student_copy["seat_label"],
-                            "seat_b_label": neighbor_student.get("seat_label", neighbor_id),
-                            "student_a": s_id,
-                            "student_b": neighbor_student.get("id"),
-                            "subject": s_subject,
-                            "class_a": s_class,
-                            "class_b": neighbor_student.get("class"),
-                            "reason": (
-                                f"Subject '{s_subject}' collision relaxed between "
-                                f"Seat {student_copy['seat_label']} and Seat {neighbor_student.get('seat_label')}"
-                            )
-                        }
-                        relaxed_constraints.append(relaxed_info)
+            # The incremental relaxed_constraints gathering and has_subject_relaxation tagging is 
+            # removed here and delegated to the final single validation pass in validator.py
             
             seat_assignments[best_seat] = student_copy
             student_to_seat[s_id] = best_seat
