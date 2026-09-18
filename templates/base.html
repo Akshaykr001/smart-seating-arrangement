@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Smart Examination Seating Arrangement | Discrete Mathematics Optimizer{% endblock %}</title>
+    
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Application Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- MathJax for Discrete Mathematics LaTeX Formulas -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="{{ url_for('index') }}" class="brand-container">
+            <div class="brand-logo">&alpha;&beta;</div>
+            <div>
+                <div class="brand-title">Smart Exam Seating Arrangement</div>
+                <div class="brand-subtitle">Discrete Mathematics AI Optimizer</div>
+            </div>
+        </a>
+        
+        <div class="nav-actions">
+            <div class="dropdown-presets no-print">
+                <a href="{{ url_for('sample_csv', preset='balanced') }}" class="btn btn-outline btn-sm">
+                    &darr; Sample CSV (Balanced)
+                </a>
+                <a href="{{ url_for('sample_csv', preset='pigeonhole') }}" class="btn btn-outline btn-sm">
+                    &darr; Sample CSV (Dense)
+                </a>
+            </div>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary btn-sm no-print">
+                New Optimizer Run
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages no-print">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'message' else 'info' }}">
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer no-print" style="border-top: 1px solid var(--border-color); padding: 1.5rem 2rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">
+        <p>
+            Discrete Mathematics Academic Optimizer &bull; Implements: 
+            <strong>Pigeonhole Principle</strong>, <strong>Rook Polynomials (Forbidden Positions)</strong>, 
+            <strong>Graph Coloring &amp; Handshaking Lemma</strong>, <strong>Chromatic Polynomials</strong>, 
+            <strong>Propositional Logic Predicates</strong>, and <strong>Principle of Inclusion-Exclusion (PIE)</strong>.
+        </p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
