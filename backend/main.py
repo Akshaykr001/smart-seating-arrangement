@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 import io
 import csv
 import math
+import os
 
 # Import existing seating logic
 from seating.feasibility_check import check_feasibility
@@ -16,10 +17,17 @@ from seating.counting import compute_combinatorial_counts
 
 app = FastAPI(title="Smart Examination Seating API")
 
+raw_allowed_origins = os.getenv("ALLOWED_ORIGINS", "").strip()
+allowed_origins = (
+    [origin.strip() for origin in raw_allowed_origins.split(",") if origin.strip()]
+    if raw_allowed_origins
+    else ["*"]
+)
+
 # Configure CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Update for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

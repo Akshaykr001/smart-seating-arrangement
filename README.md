@@ -69,6 +69,21 @@ python -m unittest discover -s tests -v
 
 ---
 
+## Deployment
+
+The repository is deployed as **two separate Vercel projects**:
+
+1. **Backend project** — set **Root Directory** to `backend`.
+   - Optional environment variable: `ALLOWED_ORIGINS` (comma-separated list of allowed frontend origins; defaults to `["*"]` when unset).
+2. **Frontend project** — set **Root Directory** to `frontend`.
+   - Required environment variable: `BACKEND_URL` set to the deployed backend's full URL with no trailing slash (Next.js rewrites `/api/:path*` to `${BACKEND_URL}/api/:path*`).
+
+For local development (`BACKEND_URL` defaults to `http://127.0.0.1:8000` when unset):
+- Backend: `cd backend && uvicorn main:app --port 8000`
+- Frontend: `cd frontend && npm run dev`
+
+---
+
 ## How It Works (Discrete Mathematics Engine)
 
 While the web interface uses plain, jargon-free language designed for exam coordinators, the allocation engine in `backend/seating/` models exam seating through six discrete-mathematics stages:

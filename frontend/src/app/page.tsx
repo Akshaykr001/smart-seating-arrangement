@@ -96,23 +96,11 @@ export default function HomePage() {
     };
 
     try {
-      let response: Response;
-      try {
-        response = await fetch("/api/assign", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (response.status === 404 || response.status === 502 || response.status === 503) {
-          throw new Error("Proxy unavailable");
-        }
-      } catch {
-        response = await fetch("http://127.0.0.1:8000/api/assign", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
+      const response = await fetch("/api/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
       if (!response.ok) {
         const errBody = await response.json().catch(() => null);
