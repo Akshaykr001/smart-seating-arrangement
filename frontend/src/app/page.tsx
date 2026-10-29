@@ -1,27 +1,159 @@
 "use client";
 
-import { useState } from "react";
+import React, { useRef, useState } from "react";
 import { StepIndicator, WizardStep } from "@/components/StepIndicator";
-import { SectionChip } from "@/components/SectionChip";
-import { CANONICAL_SECTIONS } from "@/lib/sections";
+import { Step1Students } from "@/components/Step1Students";
+import { Step2Hall } from "@/components/Step2Hall";
+import { Step3Results } from "@/components/Step3Results";
+import { AssignResponse, HallConfig, PresetScenario, StudentRecord } from "@/lib/types";
 import { useToast } from "@/components/ToastProvider";
 
+const DEFAULT_HALL_CONFIG: HallConfig = {
+  num_rooms: 1,
+  rows: 8,
+  cols: 4,
+  seats_per_bench: 2,
+  accessible_rule: "row_1",
+  adjacency_rule: "orthogonal",
+  invigilator_ratio: 20,
+};
+
 export default function HomePage() {
-  const [currentStep, setCurrentStep] = useState<WizardStep>(1);
-  const [sampleHallName, setSampleHallName] = useState("Main Examination Block — Hall A");
   const { showToast } = useToast();
+  const mainHeadingRef = useRef<HTMLHeadingElement | null>(null);
+
+  const [currentStep, setCurrentStep] = useState<WizardStep>(1);
+  const [students, setStudents] = useState<StudentRecord[]>([]);
+  const [sourceLabel, setSourceLabel] = useState<string | null>(null);
+  const [hallConfig, setHallConfig] = useState<HallConfig>(DEFAULT_HALL_CONFIG);
+  const [assignResult, setAssignResult] = useState<AssignResponse | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const moveToStep = (step: WizardStep) => {
+    setCurrentStep(step);
+    setApiError(null);
+    window.requestAnimationFrame(() => {
+      mainHeadingRef.current?.focus();
+    });
+  };
+
+  const canNavigateToStep = (target: WizardStep): boolean => {
+    if (target === 1) return true;
+    if (target === 2) return students.length > 0;
+    if (target === 3) return students.length > 0 && assignResult !== null;
+    return false;
+  };
+
+  const handleSelectPreset = (preset: PresetScenario) => {
+    setStudents(preset.students);
+    setSourceLabel(preset.title);
+    setHallConfig(preset.hallConfig);
+    setAssignResult(null);
+    showToast(`Loaded "${preset.title}" (${preset.students.length} students).`, "success");
+    moveToStep(2);
+  };
+
+  const handleUploadStudents = (uploaded: StudentRecord[], filename: string) => {
+    setStudents(uploaded);
+    setSourceLabel(filename);
+    setAssignResult(null);
+
+    // Suggest a sensible hall count if the uploaded CSV has more than 64 students
+    const seatsPerDefaultHall =
+      DEFAULT_HALL_CONFIG.rows * DEFAULT_HALL_CONFIG.cols * DEFAULT_HALL_CONFIG.seats_per_bench;
+    const neededRooms = Math.max(1, Math.ceil(uploaded.length / seatsPerDefaultHall));
+    setHallConfig((prev) => ({
+      ...prev,
+      num_rooms: neededRooms,
+    }));
+  };
+
+  const handleClearRoster = () => {
+    setStudents([]);
+    setSourceLabel(null);
+    setAssignResult(null);
+    setApiError(null);
+  };
+
+  const handleStartOver = () => {
+    setStudents([]);
+    setSourceLabel(null);
+    setHallConfig(DEFAULT_HALL_CONFIG);
+    setAssignResult(null);
+    setApiError(null);
+    moveToStep(1);
+  };
+
+  const handleGeneratePlan = async () => {
+    if (students.length === 0) return;
+    setIsGenerating(true);
+    setApiError(null);
+
+    const payload = {
+      room_config: hallConfig,
+      students,
+    };
+
+    try {
+      let response: Response;
+      try {
+        response = await fetch("/api/assign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (response.status === 404 || response.status === 502 || response.status === 503) {
+          throw new Error("Proxy unavailable");
+        }
+      } catch {
+        response = await fetch("http://127.0.0.1:8000/api/assign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => null);
+        const detail =
+          errBody && typeof errBody.detail === "string"
+            ? errBody.detail
+            : "Could not generate the seating plan. Please check your hall size and try again.";
+        throw new Error(detail);
+      }
+
+      const data: AssignResponse = await response.json();
+      setAssignResult(data);
+      showToast("Seating plan ready.", "success");
+      moveToStep(3);
+    } catch (err) {
+      const rawMsg =
+        err instanceof Error
+          ? err.message
+          : "Unable to reach the seating service. Make sure the backend server is running.";
+      const friendlyMsg = rawMsg.toLowerCase().includes("failed to fetch")
+        ? "Could not connect to the seating service on port 8000. Please make sure the backend server is running."
+        : rawMsg;
+      setApiError(friendlyMsg);
+      showToast(friendlyMsg, "error");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
-    <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 space-y-8">
+    <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 space-y-8">
       {/* Page Intro & Step Indicator */}
-      <div className="space-y-6">
+      <div className="no-print space-y-6">
         <div className="space-y-2 max-w-2xl">
           <h1
+            ref={mainHeadingRef}
             id="main-content"
             tabIndex={-1}
-            className="text-3xl sm:text-4xl font-serif text-[var(--color-text)]"
+            className="text-3xl sm:text-4xl font-serif text-[var(--color-text)] outline-none"
           >
-            Exam seating plans, ready in seconds
+            Smart Examination Seating
           </h1>
           <p className="text-lg text-[var(--color-text-muted)]">
             Upload your students, pick a hall, and get a conflict-free exam seating plan in seconds.
@@ -30,111 +162,53 @@ export default function HomePage() {
 
         <StepIndicator
           currentStep={currentStep}
-          canNavigateToStep={(step) => step <= currentStep}
-          onSelectStep={setCurrentStep}
+          canNavigateToStep={canNavigateToStep}
+          onSelectStep={moveToStep}
         />
       </div>
 
-      {/* Main Step Workspace Shell (Step 1 of build order: Design System & Shell Foundation) */}
-      <section aria-labelledby="workspace-heading" className="surface-card p-6 sm:p-8 space-y-8">
-        <div className="border-b border-[var(--color-border)] pb-6 space-y-2">
-          <div className="text-sm font-semibold text-[var(--color-accent)]">
-            Step 1 of 3 &middot; Students
-          </div>
-          <h2 id="workspace-heading" className="text-2xl font-serif">
-            Choose a student roster to begin
-          </h2>
-          <p className="text-base text-[var(--color-text-muted)] max-w-2xl">
-            Page shell and design system foundation: warm off-white canvas, flat 1px cards, Lora serif headings paired with 16px Inter UI copy, accessible section chips, and a single deep forest green accent.
-          </p>
+      {apiError && (
+        <div role="alert" className="no-print status-banner status-banner-error">
+          <strong className="font-semibold">Could not generate seating plan:</strong> {apiError}
         </div>
+      )}
 
-        {/* Section Chips Palette */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-serif">Section chips</h3>
-          <div className="flex flex-wrap gap-2.5">
-            {CANONICAL_SECTIONS.map((sec) => (
-              <SectionChip key={sec} section={sec} count={12} />
-            ))}
-          </div>
-        </div>
+      {currentStep === 1 && (
+        <Step1Students
+          students={students}
+          sourceLabel={sourceLabel}
+          onSelectPreset={handleSelectPreset}
+          onUploadStudents={handleUploadStudents}
+          onClearRoster={handleClearRoster}
+          onContinueToHall={() => moveToStep(2)}
+        />
+      )}
 
-        {/* Status Banners */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="status-banner status-banner-success flex items-start gap-3">
-            <svg
-              aria-hidden="true"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="mt-0.5 shrink-0"
-            >
-              <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <div>
-              <strong className="font-semibold">All constraints satisfied</strong> &mdash; no two students from the same section sit next to each other.
-            </div>
-          </div>
+      {currentStep === 2 && (
+        <Step2Hall
+          students={students}
+          sourceLabel={sourceLabel}
+          hallConfig={hallConfig}
+          isGenerating={isGenerating}
+          onChangeHallConfig={(next) => {
+            setHallConfig(next);
+            setAssignResult(null);
+          }}
+          onBackToStudents={() => moveToStep(1)}
+          onGenerate={handleGeneratePlan}
+        />
+      )}
 
-          <div className="status-banner status-banner-warning flex items-start gap-3">
-            <svg
-              aria-hidden="true"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="mt-0.5 shrink-0"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v4M12 16h.01" strokeLinecap="round" />
-            </svg>
-            <div>
-              <strong className="font-semibold">Plan ready with 2 exceptions</strong> &mdash;{" "}
-              <button type="button" className="text-link cursor-pointer">
-                Show exceptions
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Labeled Input & Single Primary Action Demonstration */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end pt-2 border-t border-[var(--color-border)]">
-          <div className="space-y-1.5">
-            <label htmlFor="sample-hall-label" className="block text-base font-medium text-[var(--color-text)]">
-              Examination hall label
-            </label>
-            <input
-              id="sample-hall-label"
-              type="text"
-              value={sampleHallName}
-              onChange={(e) => setSampleHallName(e.target.value)}
-              className="input-field"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 md:justify-end">
-            <button
-              type="button"
-              onClick={() => showToast("Sample notification: roster ready for Step 2.", "success")}
-              className="btn-secondary"
-            >
-              Preview toast
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentStep((prev) => (prev < 3 ? ((prev + 1) as WizardStep) : 1))}
-              className="btn-primary"
-            >
-              Continue to Hall
-            </button>
-          </div>
-        </div>
-      </section>
+      {currentStep === 3 && assignResult && (
+        <Step3Results
+          result={assignResult}
+          students={students}
+          hallConfig={hallConfig}
+          sourceLabel={sourceLabel}
+          onEditHall={() => moveToStep(2)}
+          onStartOver={handleStartOver}
+        />
+      )}
     </div>
   );
 }

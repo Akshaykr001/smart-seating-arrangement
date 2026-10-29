@@ -121,8 +121,12 @@ async def assign_seating(req: AssignRequest):
             special_assignments, used_seats, special_ids, forbidden_math = assign_special_needs_students(
                 special_students, G_seats
             )
-        except ValueError as ve:
-             raise HTTPException(status_code=400, detail=str(ve))
+        except ValueError:
+            accessible_count = sum(1 for _, d in G_seats.nodes(data=True) if d.get("accessible", False))
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough accessible seats ({accessible_count}) for {len(special_students)} students who require them."
+            )
             
         # 3. Conflict Graph & Coloring (silently computed, we will hide it from the UI but it's part of the logic)
         G_conflict = build_student_conflict_graph(students)
@@ -251,10 +255,6 @@ async def assign_seating(req: AssignRequest):
             "relaxed_constraints": relaxed_constraints,
             "unassigned_students": unassigned_students,
             "is_feasible": feasibility_report["is_feasible"],
-            "feasibility_warnings": [
-                w if isinstance(w, str) else (w[0] if isinstance(w, (list, tuple)) else str(w))
-                for w in feasibility_report.get("warnings", [])
-            ]
         }
         
     except Exception as e:

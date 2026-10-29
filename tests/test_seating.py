@@ -3,9 +3,13 @@ Unit tests for the Smart Examination Seating Arrangement discrete mathematics en
 Tests Steps 1 through 6 independently.
 """
 
+import os
+import sys
 import unittest
 import networkx as nx
 import sympy as sp
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
 from seating.feasibility_check import (
     build_seat_adjacency_graph,

@@ -1,59 +1,81 @@
 # Smart Examination Seating
 
-A robust, automated seating logistics platform designed for university examination offices. Smart Seating automatically processes student rosters, accommodates accessible seating requirements, and dynamically assigns seats to guarantee that no two students taking the same exam sit adjacent to one another.
+> **Upload your students, pick a hall, and get a conflict-free exam seating plan in seconds.**
 
-This project was built to replace manual, error-prone seating allocations with a reliable, one-click engine.
-
-## Features
-
-- **Algorithmic Separation**: Prevents academic misconduct by enforcing strict subject separation rules across all orthogonal adjacencies.
-- **Capacity & Feasibility Pre-checks**: Instantly flags if a room configuration is too dense to safely separate a given roster.
-- **Accessible Seating Support**: Automatically reserves and prioritizes front-row or aisle seats for students requiring accommodations.
-- **Production-Ready UI**: A clean, distraction-free interface built with Next.js and Tailwind CSS, featuring full data tables and visual room mapping.
-- **Export & Print**: Instantly download CSV allocation tables or view print-friendly visual charts for invigilators.
+Smart Examination Seating helps university exam cell coordinators turn a student spreadsheet and room dimensions into a ready-to-print hall plan—keeping same-section students apart, minimizing shared-subject neighbors, reserving front-row and aisle desks for students needing accessible seating, and generating invigilator duty rosters automatically.
 
 ---
 
-## Technical Architecture
+## Product Walkthrough
 
-Smart Seating is structured as a decoupled application:
+### Step 1 · Students
+Pick one of five deterministic demo scenarios or drag-and-drop your own CSV roster (with friendly row-by-row validation and a searchable table preview).
 
-### Frontend
-- **Framework**: Next.js 15 (App Router)
-- **Styling**: Tailwind CSS with a custom, high-contrast, linear-style design system.
-- **Features**: Multi-step setup wizards, responsive data tables, and client-side room visualization grids.
+![Step 1 — Students screen](docs/screenshots/step1_students.png)
 
-### Backend (The Math Engine)
-- **Framework**: FastAPI (Python)
-- **Core Engine**: A discrete-mathematics-based allocation system using `NetworkX` and `SymPy`.
+### Step 2 · Hall
+Adjust rows, benches per row, and seats per bench while watching a live hall diagram and seat-capacity counter update in real time. Multi-hall allocation, accessible-seat locations, diagonal spacing, and invigilator ratios are tucked neatly inside **Advanced options**.
 
-### How It Works (The Math Underneath)
+![Step 2 — Hall configuration screen](docs/screenshots/step2_hall.png)
 
-While the product interface abstracts away the complexity, the backend engine is powered by rigorous discrete mathematics:
+### Step 3 · Seating Plan
+Inspect an accessible light-theme seat map where every section carries both a distinct color palette and an explicit text label. Hover, focus, or tap any seat to see student details, switch between **Seat list**, **Invigilators**, and **Summary** tabs, download a CSV, or print clean one-hall-per-page charts.
 
-1. **Pigeonhole Principle (Feasibility)**: Before any allocation begins, the engine compares the maximum independent set of the seating graph against the frequency of the most common subject to guarantee a valid arrangement is mathematically possible.
-2. **Rook Polynomials (Forbidden Positions)**: Accessible seating is treated as a restricted permutation problem, ensuring special-needs students are assigned optimal seats before general allocation.
-3. **Graph Coloring (Conflict Resolution)**: The engine builds a conflict graph where nodes are students and edges represent shared subjects. Applying graph coloring algorithms ensures no two adjacent seats share the same color (subject).
-4. **Propositional Logic (Validation)**: A rigorous post-check uses predicate logic to verify that all hard constraints (e.g., $∀u,v \in Seats: Adjacency(u,v) \implies Subject(u) \neq Subject(v)$) are strictly met.
+![Step 3 — Seating plan screen](docs/screenshots/step3_seating_plan.png)
+
+### Handling Tight & Overbooked Halls
+When a crowded hall forces shared-subject neighbors—or when a single section exceeds the room's non-adjacent capacity—the planner explains the situation in plain language and highlights the exact affected pairs for invigilators.
+
+| Crowded hall (2 subject exceptions highlighted) | Overbooked section (unavoidable pairs highlighted) |
+| --- | --- |
+| ![Crowded hall exceptions](docs/screenshots/step3_crowded_exceptions.png) | ![Overbooked section warning](docs/screenshots/step3_overbooked_limit.png) |
+
+---
+
+## Built-in Demo Scenarios
+
+| Scenario | Roster | Hall Setup | Expected Outcome |
+| --- | --- | --- | --- |
+| **Mid-term · Single hall** | 60 students (12 per section), 2 accessible | 1 hall · 8 × 4 × 2 (64 seats) | All constraints satisfied (0 exceptions) |
+| **End-semester · Two halls** | 120 students (24 per section), 4 accessible | 2 halls · 8 × 4 × 2 (128 seats) | Multi-hall allocation + invigilator roster (0 exceptions) |
+| **Accessibility focus** | 40 students (8 per section), 6 accessible | 1 hall · 6 × 4 × 2 (48 seats) | Front-row & aisle accessible placement (0 exceptions) |
+| **Crowded hall** | 56 students (AIML 22, AIDE 10, GEN AI 8, CSBS 8, GENERAL 8) | 1 hall · 8 × 4 × 2 (64 seats) | Sections fully separated; 2 subject overlaps flagged |
+| **Overbooked section** | 56 students (CSE AIML 36, others 5 each) | 1 hall · 8 × 4 × 2 (64 seats) | Friendly capacity notice; unavoidable adjacent pairs highlighted |
 
 ---
 
 ## Getting Started
 
-### Backend Setup
-1. Navigate to the `backend/` directory.
-2. Install dependencies: `pip install -r requirements.txt`
-3. Run the API: `uvicorn main:app --reload`
-*(The API will start on http://localhost:8000)*
+### 1. Start the Backend (FastAPI + Python)
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
 
-### Frontend Setup
-1. Navigate to the `frontend/` directory.
-2. Install dependencies: `npm install`
-3. Start the dev server: `npm run dev`
-*(The web app will start on http://localhost:3000)*
+### 2. Start the Frontend (Next.js + Tailwind CSS)
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## Deployment
+Open **http://localhost:3000** in your browser.
 
-This architecture is designed to be easily deployed:
-- **Frontend**: Deploy directly to Vercel.
-- **Backend**: Deploy as a web service on Render, Railway, or Fly.io.
+### 3. Run Backend Engine Tests
+```bash
+python -m unittest discover -s tests -v
+```
+
+---
+
+## How It Works (Discrete Mathematics Engine)
+
+While the web interface uses plain, jargon-free language designed for exam coordinators, the allocation engine in `backend/seating/` models exam seating through six discrete-mathematics stages:
+
+1. **Feasibility Pre-Check (`feasibility_check.py`)**: Builds the physical seat adjacency graph $G = (V, E)$ (orthogonal or 8-neighbor diagonal) and computes the maximum independent set bound $\alpha(G)$ via Kőnig's Theorem on bipartite components. By the **Generalized Pigeonhole Principle**, if any section size $|C_i| > \alpha(G)$, same-section adjacency is mathematically unavoidable and flagged upfront.
+2. **Restricted Permutations for Accessible Seating (`forbidden_positions.py`)**: Models special-needs accommodations using the **combinatorics of forbidden positions** (rook polynomials on complementary boards), backtracking over permitted front-row and aisle seats before general placement begins.
+3. **Student Conflict Graph & Coloring (`graph_coloring.py`)**: Constructs the student conflict graph, verifies the **Handshaking Lemma** ($\sum_{v \in V} \deg(v) = 2|E|$), and computes greedy proper color partitions alongside symbolic chromatic polynomials.
+4. **Min-Conflict Graph Homomorphism (`seat_mapper.py`)**: Interleaves sections round-robin and embeds students into $G$ by strictly penalizing same-section neighbors while minimizing same-subject adjacency across edges.
+5. **First-Order Predicate Verification (`validator.py`)**: Evaluates universal quantification across every occupied edge $(u, v) \in E$ to verify section separation ($\phi_1$), subject separation ($\phi_2$), accessible-seat compliance ($\phi_3$), and injective seat assignment ($\phi_4$).
+6. **Combinatorial Enumeration (`counting.py`)**: Computes unconstrained seat permutations $P(|V|, n)$ via the Product Rule and first/second-order **Principle of Inclusion–Exclusion (Bonferroni)** collision bounds.

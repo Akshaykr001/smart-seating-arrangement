@@ -12,14 +12,14 @@ export function Header() {
       <a href="#main-content" className="skip-link visually-hidden">
         Skip to main content
       </a>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         <Link
           href="/"
-          className="inline-flex items-center gap-3 text-[var(--color-text)] hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-3 text-[var(--color-text)] hover:opacity-90 transition-opacity min-w-0"
         >
           <span
             aria-hidden="true"
-            className="w-8 h-8 flex items-center justify-center bg-[var(--color-accent)] text-white"
+            className="w-8 h-8 shrink-0 flex items-center justify-center bg-[var(--color-accent)] text-white"
             style={{ borderRadius: "var(--radius)" }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -29,16 +29,16 @@ export function Header() {
               <rect x="14" y="14" width="7" height="6" rx="1" />
             </svg>
           </span>
-          <span className="font-serif text-lg sm:text-xl font-medium tracking-tight">
+          <span className="font-serif text-base sm:text-xl font-medium tracking-tight truncate">
             Smart Examination Seating
           </span>
         </Link>
 
-        <nav aria-label="Primary">
+        <nav aria-label="Primary" className="shrink-0">
           <Link
             href="/how-it-works"
             aria-current={isHowItWorks ? "page" : undefined}
-            className={`text-base px-3 py-2 transition-colors ${
+            className={`text-base whitespace-nowrap px-3 py-2 transition-colors ${
               isHowItWorks
                 ? "text-[var(--color-accent)] font-semibold underline underline-offset-4"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-accent)] font-medium"
