@@ -102,18 +102,29 @@ def compute_independence_number_bound(G):
     Computes/bounds the independence number alpha(G).
     For bipartite graphs (e.g. orthogonal grids), alpha(G) is exact via max matching:
     alpha(G) = |V| - max_matching(G) (Konig's Theorem).
+    For disconnected graphs (e.g. multiple rooms), computes alpha per connected component.
     For non-bipartite graphs, provides an accurate heuristic or exact maximal independent set.
     """
     if len(G) == 0:
         return 0
-    if nx.is_bipartite(G):
-        matching = nx.bipartite.maximum_matching(G)
-        # matching includes both directions (u->v, v->u), so divide by 2
-        return len(G) - (len(matching) // 2)
-    else:
-        # Maximal independent set approximation
-        mis = nx.maximal_independent_set(G)
-        return len(mis)
+
+    total_alpha = 0
+    for comp_nodes in nx.connected_components(G):
+        subG = G.subgraph(comp_nodes)
+        if len(subG) == 0:
+            continue
+        if nx.is_bipartite(subG):
+            try:
+                top_nodes = nx.bipartite.sets(subG)[0]
+                matching = nx.bipartite.maximum_matching(subG, top_nodes=top_nodes)
+                total_alpha += len(subG) - (len(matching) // 2)
+            except Exception:
+                mis = nx.maximal_independent_set(subG)
+                total_alpha += len(mis)
+        else:
+            mis = nx.maximal_independent_set(subG)
+            total_alpha += len(mis)
+    return total_alpha
 
 
 def check_feasibility(students, room_configs, diagonal=False):
